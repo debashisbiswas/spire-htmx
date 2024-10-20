@@ -1,10 +1,10 @@
 package main
 
 import (
-	"fmt"
 	"html/template"
 	"log"
 	"net/http"
+	"strconv"
 	"time"
 )
 
@@ -18,10 +18,13 @@ var entries = []Entry{
 	{time.Now(), "follow me"},
 }
 
-var templates = template.Must(template.ParseFiles("templates/index.html"))
+var templates = template.Must(template.ParseFiles(
+	"templates/index.html",
+	"templates/components/entry.html",
+))
 
 func baseHandler(w http.ResponseWriter, r *http.Request) {
-	fmt.Println(r.URL.Path)
+	log.Println(r.URL.Path)
 	err := templates.ExecuteTemplate(w, "index.html", entries)
 
 	if err != nil {
@@ -31,14 +34,24 @@ func baseHandler(w http.ResponseWriter, r *http.Request) {
 
 func newEntryHandler(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
+
 	content := r.PostForm.Get("entry")
 	newEntry := Entry{time.Now(), content}
-	fmt.Fprintf(w, "new entry with content"+content)
 	entries = append(entries, newEntry)
+
+	err := templates.ExecuteTemplate(w, "entry.html", newEntry)
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
 }
 
 func main() {
 	http.HandleFunc("GET /", baseHandler)
 	http.HandleFunc("POST /entries", newEntryHandler)
-	log.Fatal(http.ListenAndServe(":8080", nil))
+
+	port := 8080
+	portString := strconv.Itoa(port)
+	log.Println("Listening on port " + portString)
+	log.Fatal(http.ListenAndServe(":"+portString, nil))
 }
