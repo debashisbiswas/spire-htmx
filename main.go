@@ -4,51 +4,65 @@ import (
 	"html/template"
 	"log"
 	"net/http"
+	"spire/entry"
+	"spire/storage"
 	"strconv"
 	"time"
 )
-
-type Entry struct {
-	Time    time.Time
-	Content string
-}
-
-var entries = []Entry{
-	{time.Now(), "welcome to the playground"},
-	{time.Now(), "follow me"},
-}
 
 var templates = template.Must(template.ParseFiles(
 	"templates/index.html",
 	"templates/components/entry.html",
 ))
 
-func baseHandler(w http.ResponseWriter, r *http.Request) {
-	log.Println(r.URL.Path)
-	err := templates.ExecuteTemplate(w, "index.html", entries)
+func baseHandler(w http.ResponseWriter, r *http.Request, store *storage.SQLiteStorage) {
+	entries, err := store.GetEntries()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+
+	err = templates.ExecuteTemplate(w, "index.html", entries)
 
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }
 
-func newEntryHandler(w http.ResponseWriter, r *http.Request) {
+func newEntryHandler(w http.ResponseWriter, r *http.Request, store *storage.SQLiteStorage) {
 	r.ParseForm()
 
 	content := r.PostForm.Get("entry")
-	newEntry := Entry{time.Now(), content}
-	entries = append(entries, newEntry)
-
-	err := templates.ExecuteTemplate(w, "entry.html", newEntry)
+	newEntry := entry.Entry{Time: time.Now(), Content: content}
+	err := store.SaveEntry(newEntry)
 
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+
+	err = templates.ExecuteTemplate(w, "entry.html", newEntry)
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
+func handlerWithStorage(
+	fn func(http.ResponseWriter, *http.Request, *storage.SQLiteStorage),
+	store *storage.SQLiteStorage,
+) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		fn(w, r, store)
 	}
 }
 
 func main() {
-	http.HandleFunc("GET /", baseHandler)
-	http.HandleFunc("POST /entries", newEntryHandler)
+	store, err := storage.NewSQLiteStorage("main.db")
+	if err != nil {
+		log.Fatalf("error initializing database: %v\n", err)
+	}
+
+	http.HandleFunc("GET /", handlerWithStorage(baseHandler, store))
+	http.HandleFunc("POST /entries", handlerWithStorage(newEntryHandler, store))
 
 	port := 8080
 	portString := strconv.Itoa(port)
