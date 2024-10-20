@@ -29,7 +29,16 @@ func baseHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func newEntryHandler(w http.ResponseWriter, r *http.Request) {
+	r.ParseForm()
+	content := r.PostForm.Get("entry")
+	newEntry := Entry{time.Now(), content}
+	fmt.Fprintf(w, "new entry with content"+content)
+	entries = append(entries, newEntry)
+}
+
 func main() {
-	http.HandleFunc("/", baseHandler)
+	http.HandleFunc("GET /", baseHandler)
+	http.HandleFunc("POST /entries", newEntryHandler)
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }
