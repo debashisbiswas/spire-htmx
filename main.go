@@ -2,13 +2,20 @@ package main
 
 import (
 	"fmt"
+	"html/template"
 	"log"
 	"net/http"
 )
 
+var templates = template.Must(template.ParseFiles("templates/index.html"))
+
 func baseHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Println(r.URL.Path)
-	fmt.Fprintln(w, "Welcome to Spire!")
+	err := templates.ExecuteTemplate(w, "index.html", nil)
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
 }
 
 func main() {
