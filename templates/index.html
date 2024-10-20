@@ -13,6 +13,20 @@
   <body>
     <header class="navbar">Spire</header>
 
-    <div class="container">Welcome to Spire!</div>
+    <div class="container">
+      <form>
+        <textarea class="width:100%"></textarea>
+      </form>
+
+      <div class="flow-gap">
+        {{range .}}
+        <div class="box">
+          <!-- wtf is this actually the way format a date in a go template -->
+          <time>{{.Time.Format "2006-01-02 15:04"}}</time>
+          <p>{{.Content}}</p>
+        </div>
+        {{end}}
+      </div>
+    </div>
   </body>
 </html>
