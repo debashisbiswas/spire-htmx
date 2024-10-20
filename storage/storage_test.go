@@ -37,4 +37,13 @@ func TestStorage(t *testing.T) {
 	if len(entries) != len(originalEntries) {
 		t.Errorf("found %d entries, but original had %d", len(entries), len(originalEntries))
 	}
+
+	searchResult, err := store.SearchEntries("playground")
+	if err != nil {
+		t.Errorf("error searching entries: %v\n", err)
+	}
+
+	if len(searchResult) != 1 {
+		t.Errorf("search found %d entries, but expected %d", len(searchResult), 1)
+	}
 }

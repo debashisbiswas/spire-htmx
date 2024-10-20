@@ -30,7 +30,17 @@
   <body>
     <header class="navbar">Spire</header>
 
-    <div class="container">
+    <div class="container flow-gap">
+      <input
+        type="search"
+        name="search"
+        placeholder="search"
+        class="width:100%"
+        hx-post="/search"
+        hx-trigger="input changed delay:300ms, search"
+        hx-target="#entries"
+      />
+
       <form
         hx-post="/entries"
         hx-target="#entries"
@@ -42,9 +52,7 @@
         <button type="submit">Submit</button>
       </form>
 
-      <div id="entries" class="flow-gap">
-        {{range .}} {{template "entry.html" .}} {{end}}
-      </div>
+      {{template "entries.html" .}}
     </div>
   </body>
 </html>

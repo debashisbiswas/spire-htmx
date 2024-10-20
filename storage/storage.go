@@ -109,3 +109,48 @@ func (s *SQLiteStorage) GetEntries() ([]entry.Entry, error) {
 
 	return entries, nil
 }
+
+func (s *SQLiteStorage) SearchEntries(query string) ([]entry.Entry, error) {
+	db, err := s.getDatabaseConnection()
+	if err != nil {
+		return nil, err
+	}
+	defer db.Close()
+
+	rows, err := db.Query(`
+		SELECT time, content
+		FROM entries
+		WHERE content LIKE ? 
+		ORDER BY time DESC
+	`, "%"+query+"%")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var entries []entry.Entry
+
+	for rows.Next() {
+		var entry entry.Entry
+
+		var timeString string
+		err := rows.Scan(&timeString, &entry.Content)
+		if err != nil {
+			return nil, err
+		}
+
+		entry.Time, err = time.Parse("2006-01-02T15:04:05.999999999-07:00", timeString)
+		if err != nil {
+			log.Printf("Error parsing timestamp: %v\n", err)
+			return nil, err
+		}
+
+		entries = append(entries, entry)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return entries, nil
+}
