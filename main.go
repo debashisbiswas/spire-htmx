@@ -16,8 +16,12 @@ var templates = template.Must(template.ParseFiles(
 	"templates/components/entries.html",
 ))
 
-func baseHandler(w http.ResponseWriter, r *http.Request, store *storage.SQLiteStorage) {
-	entries, err := store.GetEntries()
+type Server struct {
+	Storage storage.SQLiteStorage
+}
+
+func (server *Server) baseHandler(w http.ResponseWriter, r *http.Request) {
+	entries, err := server.Storage.GetEntries()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
@@ -29,12 +33,12 @@ func baseHandler(w http.ResponseWriter, r *http.Request, store *storage.SQLiteSt
 	}
 }
 
-func newEntryHandler(w http.ResponseWriter, r *http.Request, store *storage.SQLiteStorage) {
+func (server *Server) newEntryHandler(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 
 	content := r.PostForm.Get("entry")
 	newEntry := entry.Entry{Time: time.Now(), Content: content}
-	err := store.SaveEntry(newEntry)
+	err := server.Storage.SaveEntry(newEntry)
 
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -47,7 +51,7 @@ func newEntryHandler(w http.ResponseWriter, r *http.Request, store *storage.SQLi
 	}
 }
 
-func searchHandler(w http.ResponseWriter, r *http.Request, store *storage.SQLiteStorage) {
+func (server *Server) searchHandler(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 
 	content := r.PostForm.Get("search")
@@ -56,9 +60,9 @@ func searchHandler(w http.ResponseWriter, r *http.Request, store *storage.SQLite
 	var err error
 
 	if content == "" {
-		entries, err = store.GetEntries()
+		entries, err = server.Storage.GetEntries()
 	} else {
-		entries, err = store.SearchEntries(content)
+		entries, err = server.Storage.SearchEntries(content)
 	}
 
 	if err != nil {
@@ -72,24 +76,17 @@ func searchHandler(w http.ResponseWriter, r *http.Request, store *storage.SQLite
 	}
 }
 
-func handlerWithStorage(
-	fn func(http.ResponseWriter, *http.Request, *storage.SQLiteStorage),
-	store *storage.SQLiteStorage,
-) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		fn(w, r, store)
-	}
-}
-
 func main() {
 	store, err := storage.NewSQLiteStorage("main.db")
 	if err != nil {
 		log.Fatalf("error initializing database: %v\n", err)
 	}
 
-	http.HandleFunc("GET /", handlerWithStorage(baseHandler, store))
-	http.HandleFunc("POST /entries", handlerWithStorage(newEntryHandler, store))
-	http.HandleFunc("POST /search", handlerWithStorage(searchHandler, store))
+	server := Server{*store}
+
+	http.HandleFunc("GET /", server.baseHandler)
+	http.HandleFunc("POST /entries", server.newEntryHandler)
+	http.HandleFunc("POST /search", server.searchHandler)
 
 	port := 8080
 	portString := strconv.Itoa(port)
