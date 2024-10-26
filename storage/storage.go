@@ -45,8 +45,11 @@ func (s *SQLiteStorage) init() error {
 		CREATE TABLE IF NOT EXISTS entries (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
 			time TIMESTAMP NOT NULL,
-			content TEXT NOT NULL
-		)
+			content TEXT NOT NULL,
+			embedding F32_BLOB(512)
+		);
+
+		CREATE INDEX entries_idx ON entries (libsql_vector_idx(embedding));
 	`)
 	if err != nil {
 		return err
@@ -62,7 +65,9 @@ func (s *SQLiteStorage) SaveEntry(entry entry.Entry) error {
 	}
 	defer db.Close()
 
-	_, err = db.Exec("INSERT INTO entries (time, content) VALUES (?, ?)", entry.Time, entry.Content)
+	_, err = db.Exec(`
+		INSERT INTO entries (time, content, embedding) VALUES (?, ?, ?);
+	`, entry.Time, entry.Content, entry.Embedding)
 	if err != nil {
 		return err
 	}
@@ -77,7 +82,7 @@ func (s *SQLiteStorage) GetEntries() ([]entry.Entry, error) {
 	}
 	defer db.Close()
 
-	rows, err := db.Query("SELECT time, content FROM entries ORDER BY time DESC")
+	rows, err := db.Query("SELECT time, content, embedding FROM entries ORDER BY time DESC")
 	if err != nil {
 		return nil, err
 	}
@@ -89,7 +94,7 @@ func (s *SQLiteStorage) GetEntries() ([]entry.Entry, error) {
 		var entry entry.Entry
 
 		var timeString string
-		err := rows.Scan(&timeString, &entry.Content)
+		err := rows.Scan(&timeString, &entry.Content, &entry.Embedding)
 		if err != nil {
 			return nil, err
 		}
@@ -111,16 +116,21 @@ func (s *SQLiteStorage) GetEntries() ([]entry.Entry, error) {
 }
 
 func (s *SQLiteStorage) SearchEntries(query string) ([]entry.Entry, error) {
+	// TODO: This is repeated quite a bit. Is there a better way, maybe
+	// something similar to Python's ContextManager?
 	db, err := s.getDatabaseConnection()
 	if err != nil {
 		return nil, err
 	}
 	defer db.Close()
 
+	// TODO: I don't really need the embedding here, but I'm getting it because
+	// my test uses it, and it doesn't feel right to leave the struct field
+	// empty.
 	rows, err := db.Query(`
-		SELECT time, content
+		SELECT time, content, embedding
 		FROM entries
-		WHERE content LIKE ? 
+		WHERE content LIKE ?
 		ORDER BY time DESC
 	`, "%"+query+"%")
 	if err != nil {
@@ -134,7 +144,7 @@ func (s *SQLiteStorage) SearchEntries(query string) ([]entry.Entry, error) {
 		var entry entry.Entry
 
 		var timeString string
-		err := rows.Scan(&timeString, &entry.Content)
+		err := rows.Scan(&timeString, &entry.Content, &entry.Embedding)
 		if err != nil {
 			return nil, err
 		}
