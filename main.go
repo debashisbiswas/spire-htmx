@@ -4,10 +4,13 @@ import (
 	"html/template"
 	"log"
 	"net/http"
+	"os"
 	"spire/entry"
 	"spire/storage"
 	"strconv"
 	"time"
+
+	"github.com/joho/godotenv"
 )
 
 var templates = template.Must(template.ParseFiles(
@@ -77,6 +80,13 @@ func (server *Server) searchHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
+	err := godotenv.Load()
+	if err != nil {
+		log.Fatal("error loading .env")
+	}
+
+	log.Println(os.Getenv("VOYAGE_API_KEY"))
+
 	store, err := storage.NewSQLiteStorage("main.db")
 	if err != nil {
 		log.Fatalf("error initializing database: %v\n", err)

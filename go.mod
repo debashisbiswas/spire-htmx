@@ -3,6 +3,7 @@ module spire
 go 1.22.7
 
 require (
+	github.com/joho/godotenv v1.5.1
 	github.com/ryanskidmore/libsql-vector-go v0.1.4
 	github.com/tursodatabase/go-libsql v0.0.0-20241011135853-3effbb6dea5c
 )
