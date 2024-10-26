@@ -85,8 +85,6 @@ func main() {
 		log.Fatal("error loading .env")
 	}
 
-	log.Println(os.Getenv("VOYAGE_API_KEY"))
-
 	store, err := storage.NewSQLiteStorage("main.db")
 	if err != nil {
 		log.Fatalf("error initializing database: %v\n", err)
