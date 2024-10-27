@@ -38,11 +38,11 @@ func parseEmbeddingResponse(input []byte) (voyageEmbeddingResponse, error) {
 
 func (vc VoyageClient) GetEmbedding(input string) ([]float32, error) {
 	requestBody := struct {
-		model string
-		input string
+		Model string `json:"model"`
+		Input string `json:"input"`
 	}{
-		model: "voyage-3-lite",
-		input: input,
+		Model: "voyage-3-lite",
+		Input: input,
 	}
 
 	jsonBody, err := json.Marshal(requestBody)
@@ -71,16 +71,24 @@ func (vc VoyageClient) GetEmbedding(input string) ([]float32, error) {
 
 	body, err := io.ReadAll(resp.Body)
 
+	if resp.StatusCode != 200 {
+		return nil, errors.New(fmt.Sprintf(
+			"server returned status %d with data %s",
+			resp.StatusCode,
+			string(body),
+		))
+	}
+
 	result, err := parseEmbeddingResponse(body)
 	if err != nil {
 		return nil, err
 	}
 
 	if len(result.Data) != 1 {
-		return nil, errors.New(
-			fmt.Sprintf("expected 1 result from API, but got %d",
-			len(result.Data)),
-		)
+		return nil, errors.New(fmt.Sprintf(
+			"expected 1 result from API, but got %d",
+			len(result.Data),
+		))
 	}
 
 	return result.Data[0].Embedding, err

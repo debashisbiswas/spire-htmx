@@ -7,10 +7,12 @@ import (
 	"os"
 	"spire/entry"
 	"spire/storage"
+	"spire/voyage"
 	"strconv"
 	"time"
 
 	"github.com/joho/godotenv"
+	libsqlvector "github.com/ryanskidmore/libsql-vector-go"
 )
 
 var templates = template.Must(template.ParseFiles(
@@ -20,18 +22,21 @@ var templates = template.Must(template.ParseFiles(
 ))
 
 type Server struct {
-	Storage storage.SQLiteStorage
+	Storage      storage.SQLiteStorage
+	VoyageClient voyage.VoyageClient
 }
 
 func (server *Server) baseHandler(w http.ResponseWriter, r *http.Request) {
 	entries, err := server.Storage.GetEntries()
 	if err != nil {
+		log.Println(err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 
 	err = templates.ExecuteTemplate(w, "index.html", entries)
 
 	if err != nil {
+		log.Println(err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }
@@ -40,16 +45,30 @@ func (server *Server) newEntryHandler(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 
 	content := r.PostForm.Get("entry")
-	newEntry := entry.Entry{Time: time.Now(), Content: content}
-	err := server.Storage.SaveEntry(newEntry)
+
+	embedding, err := server.VoyageClient.GetEmbedding(content)
+	if err != nil {
+		log.Println(err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+
+	newEntry := entry.Entry{
+		Time:      time.Now(),
+		Content:   content,
+		Embedding: libsqlvector.NewVector(embedding),
+	}
+
+	err = server.Storage.SaveEntry(newEntry)
 
 	if err != nil {
+		log.Println(err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 
 	err = templates.ExecuteTemplate(w, "entry.html", newEntry)
 
 	if err != nil {
+		log.Println(err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }
@@ -69,12 +88,14 @@ func (server *Server) searchHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err != nil {
+		log.Println(err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 
 	err = templates.ExecuteTemplate(w, "entries.html", entries)
 
 	if err != nil {
+		log.Println(err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }
@@ -90,7 +111,10 @@ func main() {
 		log.Fatalf("error initializing database: %v\n", err)
 	}
 
-	server := Server{*store}
+	server := Server{
+		*store,
+		voyage.NewClient(os.Getenv("VOYAGE_API_KEY")),
+	}
 
 	http.HandleFunc("GET /", server.baseHandler)
 	http.HandleFunc("POST /entries", server.newEntryHandler)

@@ -7,7 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ryanskidmore/libsql-vector-go"
+	libsqlvector "github.com/ryanskidmore/libsql-vector-go"
+	"golang.org/x/exp/rand"
 )
 
 func TestStorage(t *testing.T) {
@@ -23,16 +24,18 @@ func TestStorage(t *testing.T) {
 		os.Remove(testDatabasePath)
 	}()
 
+	randomEmbeddings := generateRandomEmbeddings()
+
 	originalEntries := []entry.Entry{
 		{
 			Time:      time.Now(),
 			Content:   "welcome to the playground",
-			Embedding: libsqlvector.NewVector([]float32{0.3, 0.6}),
+			Embedding: libsqlvector.NewVector(randomEmbeddings),
 		},
 		{
 			Time:      time.Now(),
 			Content:   "follow me",
-			Embedding: libsqlvector.NewVector([]float32{1, 2}),
+			Embedding: libsqlvector.NewVector(randomEmbeddings),
 		},
 	}
 
@@ -66,10 +69,28 @@ func TestStorage(t *testing.T) {
 		t.FailNow()
 	}
 
-	foundEmbedding := searchResult[0].Embedding
-	expectedEmbedding := libsqlvector.NewVector([]float32{0.3, 0.6})
-	if !reflect.DeepEqual(foundEmbedding, expectedEmbedding) {
-		t.Errorf("embeddings are %v, but expected %v", foundEmbedding, expectedEmbedding)
+	foundEmbedding := searchResult[0].Embedding.Slice()
+	expectedEmbedding := randomEmbeddings
+
+	if len(foundEmbedding) != len(expectedEmbedding) {
+		t.Errorf("embedding length is incorrect: found %d, expected %d", len(foundEmbedding), len(expectedEmbedding))
 		t.FailNow()
 	}
+
+	if !reflect.DeepEqual(foundEmbedding, expectedEmbedding) {
+		t.Errorf("embeddings are %v\nexpected %v", foundEmbedding, expectedEmbedding)
+		t.FailNow()
+	}
+}
+
+func generateRandomEmbeddings() []float32 {
+	rand.Seed(42)
+
+	result := make([]float32, 512)
+
+	for i := range result {
+		result[i] = rand.Float32()
+	}
+
+	return result
 }

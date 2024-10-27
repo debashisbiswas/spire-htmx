@@ -47,13 +47,20 @@ func (s *SQLiteStorage) init() error {
 			time TIMESTAMP NOT NULL,
 			content TEXT NOT NULL,
 			embedding F32_BLOB(512)
-		);
-
-		CREATE INDEX entries_idx ON entries (libsql_vector_idx(embedding));
+		)
 	`)
 	if err != nil {
 		return err
 	}
+
+	// Everything breaks when I use the index. I suspect there's a bug in the
+	// libsql-go client, or in the library I'm using to serialize embeddings
+	// for the database. Leaving it out for now.
+
+	// _, err = db.Exec("CREATE INDEX entries_idx ON entries (libsql_vector_idx(embedding))")
+	// if err != nil {
+	// 	return err
+	// }
 
 	return nil
 }
