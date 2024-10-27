@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"html/template"
 	"log"
 	"net/http"
@@ -9,6 +10,7 @@ import (
 	"spire/storage"
 	"spire/voyage"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/joho/godotenv"
@@ -83,6 +85,21 @@ func (server *Server) searchHandler(w http.ResponseWriter, r *http.Request) {
 
 	if content == "" {
 		entries, err = server.Storage.GetEntries()
+	} else if strings.HasPrefix(content, "vibe:") {
+		searchTerm := content[5:]
+
+		if len(searchTerm) != 0 {
+			embedding, err := server.VoyageClient.GetEmbedding(searchTerm)
+
+			if err != nil {
+				log.Println(err)
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+			}
+
+			fmt.Println(embedding)
+
+			entries, err = server.Storage.SearchEntriesEmbedding(libsqlvector.NewVector(embedding))
+		}
 	} else {
 		entries, err = server.Storage.SearchEntries(content)
 	}
