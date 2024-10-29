@@ -2,7 +2,6 @@ package storage
 
 import (
 	"os"
-	"slices"
 	"spire/entry"
 	"testing"
 	"time"
@@ -80,35 +79,6 @@ func TestStorage(t *testing.T) {
 	if err != nil {
 		t.Errorf("error getting entries by embedding: %v\n", err)
 		t.FailNow()
-	}
-}
-
-func TestSerializeEmbeddings(t *testing.T) {
-	actual := serializeEmbeddings(entry.Vector{1, 2, 3})
-	expected := "'[1,2,3]'"
-	if expected != actual {
-		t.Errorf("expected %s, got %s", expected, actual)
-	}
-}
-
-func TestDeserializeEmbeddings(t *testing.T) {
-	actual, err := deserializeEmbeddings("[1,2,3]")
-
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	expected := entry.Vector{1, 2, 3}
-	if !slices.Equal(expected, actual) {
-		t.Errorf("expected %v, got %v", expected, actual)
-	}
-}
-
-func TestSerializeEmbeddingsVector(t *testing.T) {
-	actual := serializeEmbeddingsWithVectorPrefix(entry.Vector{1, 2, 3})
-	expected := "vector('[1,2,3]')"
-	if expected != actual {
-		t.Errorf("expected %s, got %s", expected, actual)
 	}
 }
 

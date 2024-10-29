@@ -2,12 +2,9 @@ package storage
 
 import (
 	"database/sql"
-	"encoding/json"
 	"fmt"
 	"log"
 	"spire/entry"
-	"strconv"
-	"strings"
 	"time"
 
 	_ "github.com/tursodatabase/go-libsql"
@@ -65,7 +62,7 @@ func (s *SQLiteStorage) init() error {
 	return nil
 }
 
-func (s *SQLiteStorage) SaveEntry(entry entry.Entry) error {
+func (s *SQLiteStorage) SaveEntry(e entry.Entry) error {
 	db, err := s.getDatabaseConnection()
 	if err != nil {
 		return err
@@ -74,10 +71,10 @@ func (s *SQLiteStorage) SaveEntry(entry entry.Entry) error {
 
 	queryTemplate := fmt.Sprintf(
 		"INSERT INTO entries (time, content, embedding) VALUES (?, ?, %s);",
-		serializeEmbeddingsWithVectorPrefix(entry.Embedding),
+		entry.SerializeEmbeddingsWithVectorPrefix(e.Embedding),
 	)
 
-	_, err = db.Exec(queryTemplate, entry.Time, entry.Content)
+	_, err = db.Exec(queryTemplate, e.Time, e.Content)
 	if err != nil {
 		return err
 	}
@@ -101,28 +98,28 @@ func (s *SQLiteStorage) GetEntries() ([]entry.Entry, error) {
 	var entries []entry.Entry
 
 	for rows.Next() {
-		var entry entry.Entry
+		var currentEntry entry.Entry
 
 		var timeString string
 		var embeddingString string
-		err := rows.Scan(&timeString, &entry.Content, &embeddingString)
+		err := rows.Scan(&timeString, &currentEntry.Content, &embeddingString)
 		if err != nil {
 			return nil, err
 		}
 
-		entry.Time, err = time.Parse("2006-01-02T15:04:05.999999999-07:00", timeString)
+		currentEntry.Time, err = time.Parse("2006-01-02T15:04:05.999999999-07:00", timeString)
 		if err != nil {
 			log.Printf("Error parsing timestamp: %v\n", err)
 			return nil, err
 		}
 
-		entry.Embedding, err = deserializeEmbeddings(embeddingString)
+		currentEntry.Embedding, err = entry.DeserializeEmbeddings(embeddingString)
 		if err != nil {
 			log.Printf("Error parsing embeddings: %v\n", err)
 			return nil, err
 		}
 
-		entries = append(entries, entry)
+		entries = append(entries, currentEntry)
 	}
 
 	if err := rows.Err(); err != nil {
@@ -158,28 +155,28 @@ func (s *SQLiteStorage) SearchEntries(query string) ([]entry.Entry, error) {
 	var entries []entry.Entry
 
 	for rows.Next() {
-		var entry entry.Entry
+		var currentEntry entry.Entry
 
 		var timeString string
 		var embeddingString string
-		err := rows.Scan(&timeString, &entry.Content, &embeddingString)
+		err := rows.Scan(&timeString, &currentEntry.Content, &embeddingString)
 		if err != nil {
 			return nil, err
 		}
 
-		entry.Time, err = time.Parse("2006-01-02T15:04:05.999999999-07:00", timeString)
+		currentEntry.Time, err = time.Parse("2006-01-02T15:04:05.999999999-07:00", timeString)
 		if err != nil {
 			log.Printf("Error parsing timestamp: %v\n", err)
 			return nil, err
 		}
 
-		entry.Embedding, err = deserializeEmbeddings(embeddingString)
+		currentEntry.Embedding, err = entry.DeserializeEmbeddings(embeddingString)
 		if err != nil {
 			log.Printf("Error parsing embeddings: %v\n", err)
 			return nil, err
 		}
 
-		entries = append(entries, entry)
+		entries = append(entries, currentEntry)
 	}
 
 	if err := rows.Err(); err != nil {
@@ -200,7 +197,7 @@ func (s *SQLiteStorage) SearchEntriesEmbedding(embedding entry.Vector) ([]entry.
 		SELECT time, content, vector_extract(embedding)
 		FROM entries
 		ORDER BY vector_distance_cos(embedding, vector(%s))
-	`, serializeEmbeddings(embedding))
+	`, entry.SerializeEmbeddings(embedding))
 
 	rows, err := db.Query(query)
 	if err != nil {
@@ -234,41 +231,4 @@ func (s *SQLiteStorage) SearchEntriesEmbedding(embedding entry.Vector) ([]entry.
 	}
 
 	return entries, nil
-}
-
-// floats [1, 2, 3] -> string '[1,2,3]'
-func serializeEmbeddings(input entry.Vector) string {
-	strNums := make([]string, len(input))
-	for i, num := range input {
-		strNums[i] = strconv.FormatFloat(float64(num), 'f', -1, 32)
-	}
-
-	builder := strings.Builder{}
-	builder.WriteString("'[")
-	builder.WriteString(strings.Join(strNums, ","))
-	builder.WriteString("]'")
-
-	return builder.String()
-}
-
-// string [1,2,3] -> floats [1, 2, 3]
-func deserializeEmbeddings(input string) (entry.Vector, error) {
-	var result entry.Vector
-
-	err := json.Unmarshal([]byte(input), &result)
-	if err != nil {
-		return nil, err
-	}
-
-	return result, nil
-}
-
-// floats [1, 2, 3] -> string vector('[1,2,3]')
-func serializeEmbeddingsWithVectorPrefix(input entry.Vector) string {
-	builder := strings.Builder{}
-	builder.WriteString("vector(")
-	builder.WriteString(serializeEmbeddings(input))
-	builder.WriteString(")")
-
-	return builder.String()
 }
