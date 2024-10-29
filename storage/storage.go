@@ -57,7 +57,7 @@ func (s *SQLiteStorage) init() error {
 		return err
 	}
 
-	_, err = db.Exec("CREATE INDEX entries_idx ON entries (libsql_vector_idx(embedding))")
+	_, err = db.Exec("CREATE INDEX IF NOT EXISTS entries_idx ON entries (libsql_vector_idx(embedding))")
 	if err != nil {
 		return err
 	}
