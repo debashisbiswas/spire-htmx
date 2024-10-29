@@ -255,8 +255,6 @@ func serializeEmbeddings(input entry.Vector) string {
 func deserializeEmbeddings(input string) (entry.Vector, error) {
 	var result entry.Vector
 
-	log.Println(input)
-
 	err := json.Unmarshal([]byte(input), &result)
 	if err != nil {
 		return nil, err
