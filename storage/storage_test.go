@@ -18,9 +18,7 @@ func TestStorage(t *testing.T) {
 		t.Errorf("error creating storage: %v\n", err)
 	}
 
-	defer func() {
-		os.Remove(testDatabasePath)
-	}()
+	defer os.Remove(testDatabasePath)
 
 	randomEmbeddings := generateRandomEmbeddings()
 
