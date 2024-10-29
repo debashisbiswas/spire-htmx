@@ -10,7 +10,6 @@ import (
 	"strings"
 	"time"
 
-	libsqlvector "github.com/ryanskidmore/libsql-vector-go"
 	_ "github.com/tursodatabase/go-libsql"
 )
 
@@ -58,10 +57,6 @@ func (s *SQLiteStorage) init() error {
 		return err
 	}
 
-	// Everything breaks when I use the index. I suspect there's a bug in the
-	// libsql-go client, or in the library I'm using to serialize embeddings
-	// for the database. Leaving it out for now.
-
 	_, err = db.Exec("CREATE INDEX entries_idx ON entries (libsql_vector_idx(embedding))")
 	if err != nil {
 		return err
@@ -79,7 +74,7 @@ func (s *SQLiteStorage) SaveEntry(entry entry.Entry) error {
 
 	queryTemplate := fmt.Sprintf(
 		"INSERT INTO entries (time, content, embedding) VALUES (?, ?, %s);",
-		serializeEmbeddingsWithVectorPrefix(entry.Embedding.Slice()),
+		serializeEmbeddingsWithVectorPrefix(entry.Embedding),
 	)
 
 	_, err = db.Exec(queryTemplate, entry.Time, entry.Content)
@@ -121,13 +116,11 @@ func (s *SQLiteStorage) GetEntries() ([]entry.Entry, error) {
 			return nil, err
 		}
 
-		embedding, err := deserializeEmbeddings(embeddingString)
+		entry.Embedding, err = deserializeEmbeddings(embeddingString)
 		if err != nil {
 			log.Printf("Error parsing embeddings: %v\n", err)
 			return nil, err
 		}
-
-		entry.Embedding = libsqlvector.NewVector(embedding)
 
 		entries = append(entries, entry)
 	}
@@ -180,13 +173,11 @@ func (s *SQLiteStorage) SearchEntries(query string) ([]entry.Entry, error) {
 			return nil, err
 		}
 
-		embedding, err := deserializeEmbeddings(embeddingString)
+		entry.Embedding, err = deserializeEmbeddings(embeddingString)
 		if err != nil {
 			log.Printf("Error parsing embeddings: %v\n", err)
 			return nil, err
 		}
-
-		entry.Embedding = libsqlvector.NewVector(embedding)
 
 		entries = append(entries, entry)
 	}
@@ -198,7 +189,7 @@ func (s *SQLiteStorage) SearchEntries(query string) ([]entry.Entry, error) {
 	return entries, nil
 }
 
-func (s *SQLiteStorage) SearchEntriesEmbedding(embedding libsqlvector.Vector) ([]entry.Entry, error) {
+func (s *SQLiteStorage) SearchEntriesEmbedding(embedding entry.Vector) ([]entry.Entry, error) {
 	db, err := s.getDatabaseConnection()
 	if err != nil {
 		return nil, err
@@ -208,8 +199,8 @@ func (s *SQLiteStorage) SearchEntriesEmbedding(embedding libsqlvector.Vector) ([
 	query := fmt.Sprintf(`
 		SELECT time, content, vector_extract(embedding)
 		FROM entries
-		ORDER BY vector_distance_cos(embedding, vector('[%s]'))
-	`, serializeEmbeddings(embedding.Slice()))
+		ORDER BY vector_distance_cos(embedding, vector(%s))
+	`, serializeEmbeddings(embedding))
 
 	rows, err := db.Query(query)
 	if err != nil {
@@ -246,7 +237,7 @@ func (s *SQLiteStorage) SearchEntriesEmbedding(embedding libsqlvector.Vector) ([
 }
 
 // floats [1, 2, 3] -> string '[1,2,3]'
-func serializeEmbeddings(input []float32) string {
+func serializeEmbeddings(input entry.Vector) string {
 	strNums := make([]string, len(input))
 	for i, num := range input {
 		strNums[i] = strconv.FormatFloat(float64(num), 'f', -1, 32)
@@ -261,8 +252,8 @@ func serializeEmbeddings(input []float32) string {
 }
 
 // string [1,2,3] -> floats [1, 2, 3]
-func deserializeEmbeddings(input string) ([]float32, error) {
-	var result []float32
+func deserializeEmbeddings(input string) (entry.Vector, error) {
+	var result entry.Vector
 
 	log.Println(input)
 
@@ -275,7 +266,7 @@ func deserializeEmbeddings(input string) ([]float32, error) {
 }
 
 // floats [1, 2, 3] -> string vector('[1,2,3]')
-func serializeEmbeddingsWithVectorPrefix(input []float32) string {
+func serializeEmbeddingsWithVectorPrefix(input entry.Vector) string {
 	builder := strings.Builder{}
 	builder.WriteString("vector(")
 	builder.WriteString(serializeEmbeddings(input))

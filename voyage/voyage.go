@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"spire/entry"
 )
 
 type VoyageClient struct {
@@ -21,7 +22,7 @@ type voyageEmbeddingResponse struct {
 	Object string // always "list"
 	Data   []struct {
 		Object    string // always "embedding"
-		Embedding []float32
+		Embedding entry.Vector
 		Index     int
 	}
 	Model string
@@ -36,7 +37,7 @@ func parseEmbeddingResponse(input []byte) (voyageEmbeddingResponse, error) {
 	return parsed, nil
 }
 
-func (vc VoyageClient) GetEmbedding(input string) ([]float32, error) {
+func (vc VoyageClient) GetEmbedding(input string) (entry.Vector, error) {
 	requestBody := struct {
 		Model string `json:"model"`
 		Input string `json:"input"`

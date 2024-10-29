@@ -1,12 +1,11 @@
 package entry
 
-import (
-	"github.com/ryanskidmore/libsql-vector-go"
-	"time"
-)
+import "time"
+
+type Vector []float32
 
 type Entry struct {
 	Time      time.Time
 	Content   string
-	Embedding libsqlvector.Vector
+	Embedding Vector
 }

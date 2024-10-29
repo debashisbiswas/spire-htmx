@@ -14,7 +14,6 @@ import (
 	"time"
 
 	"github.com/joho/godotenv"
-	libsqlvector "github.com/ryanskidmore/libsql-vector-go"
 )
 
 var templates = template.Must(template.ParseFiles(
@@ -57,7 +56,7 @@ func (server *Server) newEntryHandler(w http.ResponseWriter, r *http.Request) {
 	newEntry := entry.Entry{
 		Time:      time.Now(),
 		Content:   content,
-		Embedding: libsqlvector.NewVector(embedding),
+		Embedding: embedding,
 	}
 
 	err = server.Storage.SaveEntry(newEntry)
@@ -98,7 +97,7 @@ func (server *Server) searchHandler(w http.ResponseWriter, r *http.Request) {
 
 			fmt.Println(embedding)
 
-			entries, err = server.Storage.SearchEntriesEmbedding(libsqlvector.NewVector(embedding))
+			entries, err = server.Storage.SearchEntriesEmbedding(embedding)
 		}
 	} else {
 		entries, err = server.Storage.SearchEntries(content)

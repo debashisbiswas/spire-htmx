@@ -2,13 +2,11 @@ package storage
 
 import (
 	"os"
-	"reflect"
 	"slices"
 	"spire/entry"
 	"testing"
 	"time"
 
-	libsqlvector "github.com/ryanskidmore/libsql-vector-go"
 	"golang.org/x/exp/rand"
 )
 
@@ -31,12 +29,12 @@ func TestStorage(t *testing.T) {
 		{
 			Time:      time.Now(),
 			Content:   "welcome to the playground",
-			Embedding: libsqlvector.NewVector(randomEmbeddings),
+			Embedding: randomEmbeddings,
 		},
 		{
 			Time:      time.Now(),
 			Content:   "follow me",
-			Embedding: libsqlvector.NewVector(randomEmbeddings),
+			Embedding: randomEmbeddings,
 		},
 	}
 
@@ -70,7 +68,7 @@ func TestStorage(t *testing.T) {
 		t.FailNow()
 	}
 
-	foundEmbedding := searchResult[0].Embedding.Slice()
+	foundEmbedding := searchResult[0].Embedding
 	expectedEmbedding := randomEmbeddings
 
 	if len(foundEmbedding) != len(expectedEmbedding) {
@@ -78,12 +76,7 @@ func TestStorage(t *testing.T) {
 		t.FailNow()
 	}
 
-	if !reflect.DeepEqual(foundEmbedding, expectedEmbedding) {
-		t.Errorf("embeddings are %v\nexpected %v", foundEmbedding, expectedEmbedding)
-		t.FailNow()
-	}
-
-	_, err = store.SearchEntriesEmbedding(libsqlvector.NewVector(greetingEmbeddings))
+	_, err = store.SearchEntriesEmbedding(greetingEmbeddings)
 	if err != nil {
 		t.Errorf("error getting entries by embedding: %v\n", err)
 		t.FailNow()
@@ -91,7 +84,7 @@ func TestStorage(t *testing.T) {
 }
 
 func TestSerializeEmbeddings(t *testing.T) {
-	actual := serializeEmbeddings([]float32{1, 2, 3})
+	actual := serializeEmbeddings(entry.Vector{1, 2, 3})
 	expected := "'[1,2,3]'"
 	if expected != actual {
 		t.Errorf("expected %s, got %s", expected, actual)
@@ -105,24 +98,24 @@ func TestDeserializeEmbeddings(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	expected := []float32{1, 2, 3}
+	expected := entry.Vector{1, 2, 3}
 	if !slices.Equal(expected, actual) {
 		t.Errorf("expected %v, got %v", expected, actual)
 	}
 }
 
 func TestSerializeEmbeddingsVector(t *testing.T) {
-	actual := serializeEmbeddingsWithVectorPrefix([]float32{1, 2, 3})
+	actual := serializeEmbeddingsWithVectorPrefix(entry.Vector{1, 2, 3})
 	expected := "vector('[1,2,3]')"
 	if expected != actual {
 		t.Errorf("expected %s, got %s", expected, actual)
 	}
 }
 
-func generateRandomEmbeddings() []float32 {
+func generateRandomEmbeddings() entry.Vector {
 	rand.Seed(42)
 
-	result := make([]float32, 512)
+	result := make(entry.Vector, 512)
 
 	for i := range result {
 		result[i] = rand.Float32()
@@ -132,7 +125,7 @@ func generateRandomEmbeddings() []float32 {
 }
 
 // Embeddings for the string "greeting"
-var greetingEmbeddings []float32 = []float32{
+var greetingEmbeddings entry.Vector = entry.Vector{
 	0.007463111,
 	-0.0058574113,
 	0.027907513,
