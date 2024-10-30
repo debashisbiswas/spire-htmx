@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"html/template"
 	"log"
 	"net/http"
@@ -94,8 +93,6 @@ func (server *Server) searchHandler(w http.ResponseWriter, r *http.Request) {
 				log.Println(err)
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 			}
-
-			fmt.Println(embedding)
 
 			entries, err = server.Storage.SearchEntriesEmbedding(embedding)
 		}
